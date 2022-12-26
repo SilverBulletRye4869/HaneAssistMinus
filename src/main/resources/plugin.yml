@@ -1,0 +1,9 @@
+name: HaneAssistMinus
+version: '${project.version}'
+main: haneassist.haneassistminus.HaneAssistMinus
+api-version: 1.16
+
+
+commands:
+  haneauth:
+    usage: /haneauth
