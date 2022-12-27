@@ -11,15 +11,21 @@ import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
 import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.entity.Player;
+import org.bukkit.plugin.java.JavaPlugin;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.HashMap;
 import java.util.UUID;
+import java.util.concurrent.ExecutionException;
 
 import static haneassist.haneassistminus.HaneAssistMinus.PREFIX;
 import static haneassist.haneassistminus.HaneAssistMinus.getDb;
 
 public class Command implements CommandExecutor {
+    private JavaPlugin plugin;
+    public Command(){
+        plugin = HaneAssistMinus.getInstance();
+    }
     @Override
     public boolean onCommand(@NotNull CommandSender sender, org.bukkit.command.@NotNull Command command, @NotNull String label, @NotNull String[] args) {
 
@@ -28,7 +34,7 @@ public class Command implements CommandExecutor {
             if (!args[0].equals("test")) return true;
             switch (args[1]) {
                 case "discord":
-                    @NotNull FileConfiguration config = HaneAssistMinus.getInstance().getConfig();
+                    @NotNull FileConfiguration config = plugin.getConfig();
                     String channelId = config.getString("pass_channel");
                     if (channelId == null) {
                         sender.sendMessage("チャンネルを設定してください");
@@ -43,14 +49,34 @@ public class Command implements CommandExecutor {
                     sender.sendMessage("send success; Discord");
                     break;
                 case "firebase":
-                    CollectionReference collection = getDb().collection("discordID");
-                    DocumentReference docRef = collection.document("test");
+                    Bukkit.getScheduler().runTaskAsynchronously(plugin, new Runnable() {
+                        @Override
+                        public void run() {
+                            CollectionReference collection = getDb().collection("discordID");
+                            DocumentReference docRef = collection.document("test");
 
-                    HashMap<String,Object> data = new HashMap<>();
-                    data.put("Test","success");
-                    docRef.set(data);
+                            try {
+                                sender.sendMessage(docRef.get().get().getString("Test"));
+                            } catch (InterruptedException e) {
+                                e.printStackTrace();
+                            } catch (ExecutionException e) {
+                                e.printStackTrace();
+                            }
+                            /*
+                            HashMap<String,Object> data = new HashMap<>();
+                            data.put("Test","success");
+                            ApiFuture<WriteResult> result = docRef.set(data);
+                            try {
+                                sender.sendMessage(result.get().toString());
+                            } catch (InterruptedException e) {
+                                e.printStackTrace();
+                            } catch (ExecutionException e) {
+                                e.printStackTrace();
+                            }*/
+                            sender.sendMessage("send success; Firebase");
+                        }
+                    });
 
-                    sender.sendMessage("send success; Firebase");
                     break;
             }
         } else {
@@ -60,6 +86,7 @@ public class Command implements CommandExecutor {
             }
             BlockCommandSender cb = (BlockCommandSender) sender;
             Player p = PlayerSearch.getNearbyPlayer(cb.getBlock().getLocation());
+            if(p==null)return true;
             UUID u = p.getUniqueId();
 
             String pass = null;
@@ -68,7 +95,7 @@ public class Command implements CommandExecutor {
             }else {
                 int cnt = 0;
                 while (cnt < 100) { //失敗した場合は100回まで試行
-                    String kari = String.valueOf((long) (Math.random() * Long.MAX_VALUE)); //仮で数値を生成
+                    String kari = String.format("%05d",(int) (Math.random() * Integer.MAX_VALUE) % 100000); //仮で数値を生成
                     if (!HaneAssistMinus.oneTimePassWord.containsKey(kari)) { //既に使用されてなければbreak;
                         pass = kari;
                         break;
@@ -79,13 +106,11 @@ public class Command implements CommandExecutor {
                 if (pass == null) {
                     p.sendMessage(PREFIX + "§c§lワンタイムパスワードの生成に失敗しました");
                 }
-                pass = "0000000000000000000" + pass;
-                pass = pass.substring(pass.length() - 20);
 
                 HaneAssistMinus.oneTimePassWord.put(pass, u);
                 HaneAssistMinus.oneTimePassWordMemo.put(u, pass);
                 String finalPass = pass;
-                Bukkit.getScheduler().runTaskLater(HaneAssistMinus.getInstance(), new Runnable() {
+                Bukkit.getScheduler().runTaskLater(plugin, new Runnable() {
                     @Override
                     public void run() {
                         HaneAssistMinus.oneTimePassWord.remove(finalPass); //1時間後に削除
