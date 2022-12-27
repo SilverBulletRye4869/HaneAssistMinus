@@ -17,7 +17,6 @@ import org.jetbrains.annotations.NotNull;
 
 import javax.security.auth.login.LoginException;
 import java.io.FileInputStream;
-import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.HashMap;
@@ -45,6 +44,7 @@ public final class HaneAssistMinus extends JavaPlugin {
         } catch (IOException e) {
             e.printStackTrace();
         }
+
         PluginCommand command = getCommand("haneauth");
         command.setExecutor(new Command());
         // Plugin startup logic
@@ -73,11 +73,14 @@ public final class HaneAssistMinus extends JavaPlugin {
         @NotNull FileConfiguration config = this.getConfig();
         String token = config.getString("token");
         pass_channnel = config.getString("pass_channel");
-        if(token==null || pass_channnel == null)return;
+        if(token==null || pass_channnel == null){
+            System.err.println("[HaneAuth]Botのtoken、チャンネルIDのいずれか又は両方が不定です");
+            return;
+        }
         try {
             jda = JDABuilder.createDefault(token, GatewayIntent.GUILD_MESSAGES)
                     .setRawEventsEnabled(true)
-                    .setActivity(Activity.playing("CONAN!"))
+                    .setActivity(Activity.playing("活動中"))
                     .addEventListeners(new SendPassOnDiscord())
                     .build();
         } catch (LoginException e) {
